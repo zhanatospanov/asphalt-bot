@@ -1,6 +1,5 @@
 """
-Хранение состояния сессии весовщицы в памяти.
-Сессия живёт в рамках процесса бота (сбрасывается при перезапуске).
+Сессия пользователя — хранится в БД, переживает перезапуски бота.
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -8,89 +7,115 @@ from typing import Optional
 
 @dataclass
 class Session:
-    # Текущий покупатель на смену
-    buyer_id: Optional[int] = None
-    buyer_name: Optional[str] = None
-    buyer_bin: Optional[str] = None
+    buyer_id:      Optional[int] = None
+    buyer_name:    Optional[str] = None
+    buyer_bin:     Optional[str] = None
     buyer_address: Optional[str] = None
-
-    # Текущий объект строительства
-    object_id: Optional[int] = None
-    object_name: Optional[str] = None
-
-    # Текущая марка асфальта
+    object_id:     Optional[int] = None
+    object_name:   Optional[str] = None
     asphalt_grade: Optional[str] = None
-
-    # Температура при отгрузке (по умолчанию 160°C)
-    temperature: int = 160
-
-    # Состояние FSM для пошагового ввода
-    state: Optional[str] = None
-    temp_data: dict = field(default_factory=dict)
+    temperature:   int = 160
+    state:         Optional[str] = None
+    temp_data:     dict = field(default_factory=dict)
 
 
-# Словарь: user_id → Session
-_sessions: dict[int, Session] = {}
+# RAM-кэш состояний FSM (не персистентны — не нужны после перезапуска)
+_states:    dict[int, Optional[str]] = {}
+_temp_data: dict[int, dict]          = {}
+
+# Персистентная сессия — одна на весь бот (не на пользователя)
+_session: Optional[Session] = None
 
 
-def get_session(user_id: int) -> Session:
-    if user_id not in _sessions:
-        _sessions[user_id] = Session()
-    return _sessions[user_id]
+def _load_session() -> Session:
+    """Загружает сессию из БД при первом обращении."""
+    global _session
+    if _session is not None:
+        return _session
+    try:
+        from utils.database import get_current_session
+        row = get_current_session()
+        _session = Session(
+            buyer_id      = row.get("buyer_id"),
+            buyer_name    = row.get("buyer_name"),
+            buyer_bin     = row.get("buyer_bin"),
+            buyer_address = row.get("buyer_address"),
+            object_id     = row.get("object_id"),
+            object_name   = row.get("object_name"),
+            asphalt_grade = row.get("asphalt_grade"),
+            temperature   = row.get("temperature") or 160,
+        )
+    except Exception:
+        _session = Session()
+    return _session
 
 
-def clear_session(user_id: int):
-    _sessions[user_id] = Session()
+def _persist():
+    """Сохраняет текущую сессию в БД."""
+    s = _load_session()
+    try:
+        from utils.database import save_current_session
+        save_current_session({
+            "buyer_id":      s.buyer_id,
+            "buyer_name":    s.buyer_name,
+            "buyer_bin":     s.buyer_bin,
+            "buyer_address": s.buyer_address,
+            "object_id":     s.object_id,
+            "object_name":   s.object_name,
+            "asphalt_grade": s.asphalt_grade,
+            "temperature":   s.temperature,
+        })
+    except Exception:
+        pass
+
+
+def get_session(user_id: int = 0) -> Session:
+    return _load_session()
 
 
 def set_state(user_id: int, state: Optional[str]):
-    get_session(user_id).state = state
+    _states[user_id] = state
 
 
 def get_state(user_id: int) -> Optional[str]:
-    return get_session(user_id).state
+    return _states.get(user_id)
 
 
 def set_temp(user_id: int, key: str, value):
-    get_session(user_id).temp_data[key] = value
+    if user_id not in _temp_data:
+        _temp_data[user_id] = {}
+    _temp_data[user_id][key] = value
 
 
 def get_temp(user_id: int, key: str, default=None):
-    return get_session(user_id).temp_data.get(key, default)
+    return _temp_data.get(user_id, {}).get(key, default)
 
 
 def clear_temp(user_id: int):
-    get_session(user_id).temp_data = {}
+    _temp_data[user_id] = {}
 
 
-# Состояния FSM
+def update_session(**kwargs):
+    """Обновляет поля сессии и сохраняет в БД."""
+    s = _load_session()
+    for k, v in kwargs.items():
+        if hasattr(s, k):
+            setattr(s, k, v)
+    _persist()
+
+
 class States:
-    # Объект
-    OBJECT_MENU = "object_menu"
-    OBJECT_NEW_NAME = "object_new_name"
-
-    # Покупатель
-    BUYER_MENU = "buyer_menu"
-    BUYER_NEW_NAME = "buyer_new_name"
-    BUYER_NEW_BIN = "buyer_new_bin"
+    OBJECT_NEW_NAME  = "object_new_name"
+    BUYER_NEW_NAME   = "buyer_new_name"
+    BUYER_NEW_BIN    = "buyer_new_bin"
     BUYER_NEW_ADDRESS = "buyer_new_address"
-
-    # Марка
-    GRADE_SELECT = "grade_select"
-
-    # Рейс
-    TRIP_VEHICLE = "trip_vehicle"
-    TRIP_TARE = "trip_tare"
-    TRIP_GROSS = "trip_gross"
-    TRIP_CONFIRM = "trip_confirm"
-
-    # Настройки компании
-    COMPANY_NAME = "company_name"
-    COMPANY_BIN  = "company_bin"
-
-    # Отчёт
+    GRADE_SELECT     = "grade_select"
+    TRIP_VEHICLE     = "trip_vehicle"
+    TRIP_TARE        = "trip_tare"
+    TRIP_GROSS       = "trip_gross"
+    TRIP_CONFIRM     = "trip_confirm"
+    COMPANY_NAME     = "company_name"
+    COMPANY_BIN      = "company_bin"
     REPORT_DATE_FROM = "report_date_from"
-    REPORT_DATE_TO = "report_date_to"
-
-    # Смена счётчика
-    SET_COUNTER = "set_counter"
+    REPORT_DATE_TO   = "report_date_to"
+    SET_COUNTER      = "set_counter"

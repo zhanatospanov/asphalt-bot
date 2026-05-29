@@ -25,7 +25,9 @@ from handlers.admin import (
     cmd_report, callback_report, handle_report_input,
     cmd_company, callback_company, handle_company_input,
     cmd_set_counter, handle_counter_input,
-    cmd_temperature, handle_temperature_input, TEMP_STATE
+    cmd_temperature, handle_temperature_input, TEMP_STATE,
+    cmd_addgrade, handle_addgrade_input, ADDGRADE_STATE,
+    cmd_delete, callback_delete
 )
 
 logging.basicConfig(
@@ -76,6 +78,9 @@ async def message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif state == TEMP_STATE:
         await handle_temperature_input(update, context)
+
+    elif state == ADDGRADE_STATE:
+        await handle_addgrade_input(update, context)
 
     else:
         await update.message.reply_text(
@@ -152,6 +157,8 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await callback_report(update, context)
     elif data.startswith("company_"):
         await callback_company(update, context)
+    elif data.startswith("del_"):
+        await callback_delete(update, context)
     else:
         await query.answer("Неизвестная команда")
 
@@ -175,6 +182,8 @@ def main():
     app.add_handler(CommandHandler("company", guarded(cmd_company)))
     app.add_handler(CommandHandler("counter", guarded(cmd_set_counter)))
     app.add_handler(CommandHandler("temp",    guarded(cmd_temperature)))
+    app.add_handler(CommandHandler("addgrade", guarded(cmd_addgrade)))
+    app.add_handler(CommandHandler("delete",   guarded(cmd_delete)))
 
     # Callback-кнопки
     app.add_handler(CallbackQueryHandler(callback_router))
@@ -193,6 +202,8 @@ def main():
             BotCommand("report",  "Журнал отпуска в Excel"),
             BotCommand("company", "Реквизиты завода (адм.)"),
             BotCommand("counter", "Номер накладной (адм.)"),
+            BotCommand("addgrade", "Добавить новую марку асфальта"),
+            BotCommand("delete",   "Удалить запись из базы"),
             BotCommand("help",    "Список команд"),
         ])
 

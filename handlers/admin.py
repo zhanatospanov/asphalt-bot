@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
-from utils.session import get_session, set_state, get_state, set_temp, get_temp, clear_temp, States
+from utils.session import get_session, set_state, get_state, set_temp, get_temp, clear_temp, States, update_session
 from utils.database import (
     get_grades, add_grade, get_company, save_company,
     get_trips, get_trips_today, get_next_doc_number, set_doc_number
@@ -59,7 +59,7 @@ async def callback_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
             full_name = g["name"]
             break
 
-    get_session(user_id).asphalt_grade = full_name
+    update_session(asphalt_grade=full_name)
     set_state(user_id, None)
     await query.edit_message_text(
         f"✅ Марка установлена: <b>{full_name}</b>",
@@ -70,7 +70,7 @@ async def callback_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_grade_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
-    get_session(user_id).asphalt_grade = text
+    update_session(asphalt_grade=text)
     add_grade(text)
     set_state(user_id, None)
     await update.message.reply_text(
@@ -331,7 +331,7 @@ async def handle_temperature_input(update, context):
         t = int(text)
         if not (100 <= t <= 200):
             raise ValueError
-        get_session(user_id).temperature = t
+        update_session(temperature=t)
         set_state(user_id, None)
         await update.message.reply_text(
             f"✅ Температура установлена: <b>{t} °C</b>",
@@ -339,3 +339,152 @@ async def handle_temperature_input(update, context):
         )
     except ValueError:
         await update.message.reply_text("❌ Введите число от 100 до 200, например: 160")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Добавление новой марки асфальта
+# ═══════════════════════════════════════════════════════════════════════════════
+
+ADDGRADE_STATE = "addgrade"
+
+async def cmd_addgrade(update, context):
+    user_id = update.effective_user.id
+    set_state(user_id, ADDGRADE_STATE)
+    await update.message.reply_text(
+        "Введите название новой марки асфальта.\n"
+        "Она добавится в справочник навсегда:",
+        parse_mode="HTML"
+    )
+
+async def handle_addgrade_input(update, context):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    add_grade(text)
+    set_state(user_id, None)
+    await update.message.reply_text(
+        f"Марка добавлена: <b>{text}</b>",
+        parse_mode="HTML"
+    )
+
+# ── Добавление новой марки асфальта ──────────────────────────────────────────
+
+ADDGRADE_STATE = "addgrade"
+
+
+async def cmd_addgrade(update, context):
+    user_id = update.effective_user.id
+    set_state(user_id, ADDGRADE_STATE)
+    await update.message.reply_text(
+        "Введите название новой марки.\nОна добавится в справочник навсегда:"
+    )
+
+
+async def handle_addgrade_input(update, context):
+    user_id = update.effective_user.id
+    text = update.message.text.strip()
+    add_grade(text)
+    set_state(user_id, None)
+    await update.message.reply_text(f"Марка добавлена: <b>{text}</b>", parse_mode="HTML")
+
+
+# ── Удаление записей из БД ────────────────────────────────────────────────────
+
+async def cmd_delete(update, context):
+    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👤 Покупатели",      callback_data="del_menu_buyers")],
+        [InlineKeyboardButton("🏗 Объекты",          callback_data="del_menu_objects")],
+        [InlineKeyboardButton("🏷 Марки асфальта",  callback_data="del_menu_grades")],
+        [InlineKeyboardButton("🚛 Рейсы (журнал)",  callback_data="del_menu_trips")],
+    ])
+    await update.message.reply_text("🗑 Что удалить?", reply_markup=kb)
+
+
+async def callback_delete(update, context):
+    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    import sqlite3, os
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    db_path = os.environ.get("DB_PATH", "asphalt_bot.db")
+
+    def get_rows(table, name_col):
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute(f"SELECT id, {name_col} FROM {table} ORDER BY {name_col}").fetchall()
+        conn.close()
+        return rows
+
+    def del_row(table, row_id):
+        conn = sqlite3.connect(db_path)
+        conn.execute(f"DELETE FROM {table} WHERE id=?", (row_id,))
+        conn.commit()
+        conn.close()
+
+    # Показать список для удаления
+    menus = {
+        "del_menu_buyers":  ("buyers",        "name",  "👤 Покупатели"),
+        "del_menu_objects": ("objects",        "name",  "🏗 Объекты"),
+        "del_menu_grades":  ("asphalt_grades", "name",  "🏷 Марки"),
+        "del_menu_trips":   ("trips",          "vehicle_number", "🚛 Рейсы"),
+    }
+
+    if data in menus:
+        table, col, title = menus[data]
+        if table == "trips":
+            # для рейсов показываем последние 20
+            conn = sqlite3.connect(db_path)
+            rows = conn.execute(
+                "SELECT id, doc_number, trip_date, vehicle_number, buyer_name "
+                "FROM trips ORDER BY id DESC LIMIT 20"
+            ).fetchall()
+            conn.close()
+            if not rows:
+                await query.edit_message_text("Рейсов нет.")
+                return
+            buttons = [
+                [InlineKeyboardButton(
+                    f"№{r[1]} {r[2]} {r[3]} {r[4] or ''}",
+                    callback_data=f"del_trips_{r[0]}"
+                )] for r in rows
+            ]
+        else:
+            rows = get_rows(table, col)
+            if not rows:
+                await query.edit_message_text("Список пуст.")
+                return
+            prefix = data.replace("del_menu_", "del_")
+            buttons = [
+                [InlineKeyboardButton(f"❌ {r[1]}", callback_data=f"{prefix}_{r[0]}")]
+                for r in rows
+            ]
+        buttons.append([InlineKeyboardButton("« Назад", callback_data="del_back")])
+        await query.edit_message_text(
+            f"{title} — нажми чтобы удалить:",
+            reply_markup=InlineKeyboardMarkup(buttons)
+        )
+        return
+
+    if data == "del_back":
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("👤 Покупатели",     callback_data="del_menu_buyers")],
+            [InlineKeyboardButton("🏗 Объекты",         callback_data="del_menu_objects")],
+            [InlineKeyboardButton("🏷 Марки асфальта", callback_data="del_menu_grades")],
+            [InlineKeyboardButton("🚛 Рейсы (журнал)", callback_data="del_menu_trips")],
+        ])
+        await query.edit_message_text("🗑 Что удалить?", reply_markup=kb)
+        return
+
+    # Подтверждение удаления
+    tables_map = {
+        "del_buyers":  "buyers",
+        "del_objects": "objects",
+        "del_grades":  "asphalt_grades",
+        "del_trips":   "trips",
+    }
+    for prefix, table in tables_map.items():
+        if data.startswith(prefix + "_"):
+            row_id = int(data.split("_")[-1])
+            del_row(table, row_id)
+            await query.edit_message_text(f"Запись удалена.")
+            return

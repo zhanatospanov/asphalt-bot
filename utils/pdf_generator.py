@@ -7,6 +7,8 @@ from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -72,9 +74,21 @@ def _draw_passport(c, trip, company, buyer, top_y):
         else:
             c.rect(x, y_, w, h, fill=0, stroke=1)
 
-    def ctxt(x, y_, w, h, s, bold=False, size=7.5, align="center"):
-        c.setFont("DJ-B" if bold else "DJ", size)
+    def ctxt(x, y_, w, h, s, bold=False, size=7.5, align="center", wrap=False):
         s = str(s)
+        if wrap:
+            style = ParagraphStyle(
+                "cell",
+                fontName="DJ-B" if bold else "DJ",
+                fontSize=size,
+                leading=size * 1.3,
+                alignment=0,  # left
+            )
+            p = Paragraph(s, style)
+            pw, ph = p.wrap(w - 4*mm, h)
+            p.drawOn(c, x + 2*mm, y_ + h/2 - ph/2)
+            return
+        c.setFont("DJ-B" if bold else "DJ", size)
         ty = y_ + h/2 - size*0.36
         if align == "center":
             c.drawCentredString(x + w/2, ty, s)

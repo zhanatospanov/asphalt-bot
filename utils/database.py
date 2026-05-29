@@ -86,6 +86,22 @@ def init_db():
         )
     """)
 
+    # Текущие настройки сессии (сохраняются между перезапусками)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS current_session (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            buyer_id INTEGER,
+            buyer_name TEXT,
+            buyer_bin TEXT,
+            buyer_address TEXT,
+            object_id INTEGER,
+            object_name TEXT,
+            asphalt_grade TEXT,
+            temperature INTEGER DEFAULT 160
+        )
+    """)
+    c.execute("INSERT OR IGNORE INTO current_session (id, temperature) VALUES (1, 160)")
+
     # Счётчик номеров накладных
     c.execute("""
         CREATE TABLE IF NOT EXISTS doc_counter (
@@ -103,16 +119,28 @@ def init_db():
     """, (current_year,))
 
     # Добавим несколько марок по умолчанию
-    c.execute("SELECT COUNT(*) FROM asphalt_grades")
-    if c.fetchone()[0] == 0:
-        grades = [
-            ("АС 9.5/12.5 Тип А (верхний слой)",),
-            ("АС 12.5/20 Тип Б (нижний слой)",),
-            ("АС 19/25 Тип В (основание)",),
-            ("ЩМА-15",),
-            ("ЩМА-20",),
-        ]
-        c.executemany("INSERT INTO asphalt_grades (name) VALUES (?)", grades)
+    # Всегда синхронизируем эталонный список марок
+    STANDARD_GRADES = [
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая плотная тип А, марка I",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая плотная тип А, марка II",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая плотная тип Б, марка I",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая плотная тип Б, марка II",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая плотная тип Б, марка III",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая высокопористая щебеночная, марка I",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая пористая, марка I",
+        "Смесь асфальтобетонная дорожная горячая крупнозернистая пористая, марка II",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип А, марка I",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип А, марка II",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип Б, марка I",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип Б, марка II",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип Б, марка III",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип В, марка II",
+        "Смесь асфальтобетонная дорожная горячая мелкозернистая плотная тип В, марка III",
+    ]
+    existing = {r[0] for r in c.execute("SELECT name FROM asphalt_grades").fetchall()}
+    for g in STANDARD_GRADES:
+        if g not in existing:
+            c.execute("INSERT INTO asphalt_grades (name) VALUES (?)", (g,))
 
     conn.commit()
     conn.close()
@@ -304,3 +332,23 @@ def add_object(name: str) -> int:
     conn.close()
     return oid
 
+
+
+# ── Текущая сессия (персистентная) ───────────────────────────────────────────
+
+def get_current_session() -> dict:
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM current_session WHERE id=1").fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def save_current_session(data: dict):
+    conn = get_conn()
+    sets = ", ".join(f"{k}=?" for k in data)
+    conn.execute(
+        f"UPDATE current_session SET {sets} WHERE id=1",
+        list(data.values())
+    )
+    conn.commit()
+    conn.close()
