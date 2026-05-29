@@ -168,17 +168,17 @@ def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # Команды
-    app.add_handler(CommandHandler("start", guarded(cmd_start)))
-    app.add_handler(CommandHandler(["help", "помощь"], guarded(cmd_help)))
-    app.add_handler(CommandHandler(["рейс", "reis", "trip"], guarded(cmd_trip)))
-    app.add_handler(CommandHandler(["покупатель", "buyer"], guarded(cmd_buyer)))
-    app.add_handler(CommandHandler(["объект", "object", "obj"], guarded(cmd_object)))
-    app.add_handler(CommandHandler(["марка", "grade"], guarded(cmd_grade)))
-    app.add_handler(CommandHandler(["отчёт", "отчет", "report"], guarded(cmd_report)))
-    app.add_handler(CommandHandler(["реквизиты", "company"], guarded(cmd_company)))
-    app.add_handler(CommandHandler(["счётчик", "счетчик", "counter"], guarded(cmd_set_counter)))
-    app.add_handler(CommandHandler(["температура", "temp"], guarded(cmd_temperature)))
+    # Команды (только латиница — ограничение Telegram Bot API)
+    app.add_handler(CommandHandler("start",   guarded(cmd_start)))
+    app.add_handler(CommandHandler("help",    guarded(cmd_help)))
+    app.add_handler(CommandHandler("trip",    guarded(cmd_trip)))
+    app.add_handler(CommandHandler("buyer",   guarded(cmd_buyer)))
+    app.add_handler(CommandHandler("obj",     guarded(cmd_object)))
+    app.add_handler(CommandHandler("grade",   guarded(cmd_grade)))
+    app.add_handler(CommandHandler("report",  guarded(cmd_report)))
+    app.add_handler(CommandHandler("company", guarded(cmd_company)))
+    app.add_handler(CommandHandler("counter", guarded(cmd_set_counter)))
+    app.add_handler(CommandHandler("temp",    guarded(cmd_temperature)))
 
     # Callback-кнопки
     app.add_handler(CallbackQueryHandler(callback_router))
@@ -189,15 +189,15 @@ def main():
     # Установка команд в меню Telegram
     async def post_init(application):
         await application.bot.set_my_commands([
-            BotCommand("рейс", "Взвесить машину и выдать накладную"),
-            BotCommand("покупатель", "Выбрать покупателя на смену"),
-            BotCommand("объект", "Выбрать объект строительства"),
-            BotCommand("марка", "Выбрать марку асфальта на день"),
-            BotCommand("температура", "Изменить температуру смеси (по умол. 160°C)"),
-            BotCommand("отчёт", "Выгрузить журнал в Excel"),
-            BotCommand("реквизиты", "Настройки реквизитов завода"),
-            BotCommand("счётчик", "Изменить номер следующей накладной"),
-            BotCommand("помощь", "Список команд"),
+            BotCommand("trip",    "Взвесить машину — новый рейс"),
+            BotCommand("buyer",   "Выбрать покупателя"),
+            BotCommand("obj",     "Выбрать объект строительства"),
+            BotCommand("grade",   "Выбрать марку асфальта"),
+            BotCommand("temp",    "Изменить температуру (по умол. 160C)"),
+            BotCommand("report",  "Журнал отпуска в Excel"),
+            BotCommand("company", "Реквизиты завода (адм.)"),
+            BotCommand("counter", "Номер накладной (адм.)"),
+            BotCommand("help",    "Список команд"),
         ])
 
     app.post_init = post_init
