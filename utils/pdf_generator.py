@@ -221,7 +221,7 @@ def _draw_passport(c, trip, company, buyer, top_y):
         c.line(sx+22*mm, y-8*mm,  sx+sw, y-8*mm)
         txt(sx+22*mm, y-12*mm, "(Ф.И.О.)", size=6)
 
-    txt(m+rw-20*mm, y-14*mm, "М.П.", size=7, align="center")
+    txt(m+22*mm, y-14*mm, "М.П.", size=7, align="center")
 
 
 def generate_all_docs(trip, company, buyer):
