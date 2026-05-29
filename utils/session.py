@@ -19,25 +19,17 @@ class Session:
     temp_data:     dict = field(default_factory=dict)
 
 
-# RAM-кэш состояний FSM (не персистентны — не нужны после перезапуска)
+# RAM-кэш состояний FSM
 _states:    dict[int, Optional[str]] = {}
 _temp_data: dict[int, dict]          = {}
 
-# Персистентная сессия — одна на весь бот (не на пользователя)
-_session: Optional[Session] = None
-
 
 def _load_session() -> Session:
-    """Загружает сессию из БД при первом обращении."""
-    global _session
-    if _session is not None:
-        return _session
+    """Читает сессию из БД каждый раз — гарантирует актуальность."""
     try:
         from utils.database import get_current_session
-        import logging
         row = get_current_session()
-        logging.getLogger(__name__).info(f"Session loaded from DB: {dict(row)}")
-        _session = Session(
+        return Session(
             buyer_id      = row.get("buyer_id"),
             buyer_name    = row.get("buyer_name"),
             buyer_bin     = row.get("buyer_bin"),
@@ -50,8 +42,7 @@ def _load_session() -> Session:
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Session load error: {e}")
-        _session = Session()
-    return _session
+        return Session()
 
 
 def _persist():
