@@ -160,7 +160,7 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await callback_company(update, context)
     elif data.startswith("del_"):
         await callback_delete(update, context)
-    elif data.startswith("allow_user_") or data.startswith("deny_user_"):
+    elif data.startswith("allow_") or data.startswith("deny_"):
         await callback_user_access(update, context)
     else:
         await query.answer("Неизвестная команда")
