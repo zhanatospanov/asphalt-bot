@@ -92,11 +92,14 @@ def clear_temp(user_id: int):
 
 def update_session(**kwargs):
     """Обновляет поля сессии и сохраняет в БД."""
-    s = _load_session()
-    for k, v in kwargs.items():
-        if hasattr(s, k):
-            setattr(s, k, v)
-    _persist()
+    import logging
+    log = logging.getLogger(__name__)
+    try:
+        from utils.database import save_current_session
+        save_current_session(kwargs)
+        log.info(f"Session updated: {kwargs}")
+    except Exception as e:
+        log.error(f"Session save error: {e}", exc_info=True)
 
 
 class States:
