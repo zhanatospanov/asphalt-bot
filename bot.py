@@ -168,6 +168,23 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ─── Запуск ──────────────────────────────────────────────────────────────────
 
+async def cmd_testnotify(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    admin_ids = get_admin_ids()
+    await update.message.reply_text("ID: " + str(user_id) + " admins: " + str(admin_ids))
+    for admin_id in admin_ids:
+        try:
+            from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("Разрешить тест", callback_data="allow_" + str(user_id)),
+                InlineKeyboardButton("Отклонить", callback_data="deny_" + str(user_id))
+            ]])
+            await context.bot.send_message(chat_id=admin_id, text="Тест от " + str(user_id), reply_markup=kb)
+            await update.message.reply_text("Отправлено админу " + str(admin_id))
+        except Exception as e:
+            await update.message.reply_text("Ошибка: " + str(e))
+
+
 def main():
     init_db()
     logger.info("База данных инициализирована")
@@ -188,6 +205,8 @@ def main():
     app.add_handler(CommandHandler("addgrade", guarded(cmd_addgrade)))
     app.add_handler(CommandHandler("delete",   guarded(cmd_delete)))
     app.add_handler(CommandHandler("users",    guarded(cmd_users)))
+    app.add_handler(CommandHandler("testnotify", cmd_testnotify))
+    app.add_handler(CommandHandler("testnotify", cmd_testnotify))
 
     # Callback-кнопки
     app.add_handler(CallbackQueryHandler(callback_router))
