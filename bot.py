@@ -192,7 +192,7 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     # Команды (только латиница — ограничение Telegram Bot API)
-    app.add_handler(CommandHandler("start",   guarded(cmd_start)))
+    app.add_handler(CommandHandler("start",   cmd_start))
     app.add_handler(CommandHandler("help",    guarded(cmd_help)))
     app.add_handler(CommandHandler("trip",    guarded(cmd_trip)))
     app.add_handler(CommandHandler("buyer",   guarded(cmd_buyer)))
