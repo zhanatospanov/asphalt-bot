@@ -9,7 +9,7 @@ from telegram.ext import (
 
 from utils.database import init_db
 from utils.session import get_state, States
-from utils.access import is_allowed
+from utils.access import is_allowed, get_admin_ids
 
 from handlers.trip import (
     cmd_trip, handle_trip_input, callback_trip_confirm
