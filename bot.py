@@ -142,6 +142,37 @@ def guarded(fn):
 
 # ─── Роутер callback-кнопок ──────────────────────────────────────────────────
 
+async def callback_user_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data.startswith("allow_"):
+        user_id = int(data.split("_")[1])
+        try:
+            from utils.database import add_allowed_user
+            chat = await context.bot.get_chat(user_id)
+            name = chat.full_name or str(user_id)
+            add_allowed_user(user_id, name)
+            await query.edit_message_text("Доступ разрешён: " + name)
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="Доступ разрешён! Напишите /start"
+            )
+        except Exception as e:
+            await query.edit_message_text("Ошибка: " + str(e))
+
+    elif data.startswith("deny_"):
+        user_id = int(data.split("_")[1])
+        await query.edit_message_text("Доступ отклонён для ID: " + str(user_id))
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="В доступе отказано. Обратитесь к администратору."
+            )
+        except Exception:
+            pass
+
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
@@ -241,33 +272,3 @@ if __name__ == "__main__":
     main()
 
 
-async def callback_user_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-
-    if data.startswith("allow_"):
-        user_id = int(data.split("_")[1])
-        try:
-            from utils.database import add_allowed_user
-            chat = await context.bot.get_chat(user_id)
-            name = chat.full_name or str(user_id)
-            add_allowed_user(user_id, name)
-            await query.edit_message_text("Доступ разрешён: " + name)
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="Доступ разрешён! Напишите /start"
-            )
-        except Exception as e:
-            await query.edit_message_text("Ошибка: " + str(e))
-
-    elif data.startswith("deny_"):
-        user_id = int(data.split("_")[1])
-        await query.edit_message_text("Доступ отклонён для ID: " + str(user_id))
-        try:
-            await context.bot.send_message(
-                chat_id=user_id,
-                text="В доступе отказано. Обратитесь к администратору."
-            )
-        except Exception:
-            pass
