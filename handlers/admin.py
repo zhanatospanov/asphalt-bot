@@ -22,7 +22,7 @@ async def cmd_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     buttons = []
     for g in grades:
-        buttons.append([InlineKeyboardButton(g["name"], callback_data=f"grade_{g['id']}_{g['name'][:30]}")])
+        buttons.append([InlineKeyboardButton(g["name"], callback_data=f"grade_{g['id']}")])
     buttons.append([InlineKeyboardButton("➕ Другая марка", callback_data="grade_new")])
 
     session = get_session(user_id)
@@ -46,18 +46,17 @@ async def callback_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Введите марку асфальта:")
         return
 
-    # grade_ID_name
-    parts = data.split("_", 2)
-    grade_name = parts[2] if len(parts) >= 3 else data
-
-    # Ищем полное имя в БД по id
-    grade_id = int(parts[1]) if len(parts) >= 2 else 0
+    # grade_ID
+    try:
+        grade_id = int(data.split("_")[1])
+    except (IndexError, ValueError):
+        await query.edit_message_text("Ошибка выбора марки.")
+        return
     grades = get_grades()
-    full_name = grade_name
-    for g in grades:
-        if g["id"] == grade_id:
-            full_name = g["name"]
-            break
+    full_name = next((g["name"] for g in grades if g["id"] == grade_id), None)
+    if not full_name:
+        await query.edit_message_text("Марка не найдена.")
+        return
 
     update_session(asphalt_grade=full_name)
     set_state(user_id, None)
