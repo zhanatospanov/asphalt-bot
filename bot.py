@@ -68,11 +68,7 @@ async def message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif state in (States.REPORT_DATE_FROM, States.REPORT_DATE_TO):
         await handle_report_input(update, context)
 
-    elif state in (
-        States.COMPANY_NAME, States.COMPANY_BIN, States.COMPANY_ADDRESS,
-        States.COMPANY_PHONE, States.COMPANY_BANK, States.COMPANY_BIK,
-        States.COMPANY_IBAN, States.COMPANY_DIRECTOR
-    ):
+    elif state in (States.COMPANY_NAME, States.COMPANY_BIN):
         await handle_company_input(update, context)
 
     elif state == States.SET_COUNTER:
