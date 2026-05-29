@@ -113,8 +113,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if user.username:
                     lines.append("@" + user.username)
                 await context.bot.send_message(chat_id=admin_id, text="\n".join(lines), reply_markup=kb)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Admin notify error: {e}", exc_info=True)
         await update.message.reply_text("Запрос отправлен администратору. Ожидайте подтверждения.")
         return
 
