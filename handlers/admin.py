@@ -214,7 +214,7 @@ async def cmd_company(update: Update, context: ContextTypes.DEFAULT_TYPE):
     company = get_company()
     lines = ["⚙️ <b>Реквизиты завода:</b>\n"]
     for key, _, label in COMPANY_FIELDS:
-        val = company.get(key) or "<не задано>"
+        val = company.get(key) or "—"
         lines.append(f"  {label}: {val}")
 
     kb = InlineKeyboardMarkup([
