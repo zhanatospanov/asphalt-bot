@@ -27,7 +27,8 @@ from handlers.admin import (
     cmd_set_counter, handle_counter_input,
     cmd_temperature, handle_temperature_input, TEMP_STATE,
     cmd_addgrade, handle_addgrade_input, ADDGRADE_STATE,
-    cmd_delete, callback_delete
+    cmd_delete, callback_delete,
+    cmd_users, callback_users
 )
 
 logging.basicConfig(
@@ -97,26 +98,25 @@ async def message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    user = update.effective_user
+    full_name = user.full_name or str(user_id)
+
     if not is_allowed(user_id):
-        await update.message.reply_text("⛔ У вас нет доступа.")
+        for admin_id in get_admin_ids():
+            try:
+                from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+                kb = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("Разрешить " + full_name[:15], callback_data="allow_" + str(user_id)),
+                    InlineKeyboardButton("Отклонить", callback_data="deny_" + str(user_id))
+                ]])
+                lines = ["Запрос доступа:", full_name, "ID: " + str(user_id)]
+                if user.username:
+                    lines.append("@" + user.username)
+                await context.bot.send_message(chat_id=admin_id, text="\n".join(lines), reply_markup=kb)
+            except Exception:
+                pass
+        await update.message.reply_text("Запрос отправлен администратору. Ожидайте подтверждения.")
         return
-
-    await update.message.reply_text(
-        "👋 Добро пожаловать в систему весовой!\n\n"
-        "<b>Начало смены:</b>\n"
-        "1️⃣ /покупатель — выбрать покупателя\n"
-        "2️⃣ /объект — выбрать объект строительства\n"
-        "3️⃣ /марка — выбрать марку асфальта\n"
-        "4️⃣ /температура — если не 160 °C\n\n"
-        "<b>Каждая машина:</b>\n"
-        "🚛 /рейс — взвесить и получить накладную\n\n"
-        "<b>Отчёты и настройки:</b>\n"
-        "📊 /отчёт — журнал в Excel\n"
-        "⚙️ /реквизиты — реквизиты завода (адм.)\n"
-        "🔢 /счётчик — номер накладной (адм.)",
-        parse_mode="HTML"
-    )
-
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await cmd_start(update, context)
@@ -159,6 +159,8 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await callback_company(update, context)
     elif data.startswith("del_"):
         await callback_delete(update, context)
+    elif data.startswith("allow_user_") or data.startswith("deny_user_"):
+        await callback_user_access(update, context)
     else:
         await query.answer("Неизвестная команда")
 
@@ -184,6 +186,7 @@ def main():
     app.add_handler(CommandHandler("temp",    guarded(cmd_temperature)))
     app.add_handler(CommandHandler("addgrade", guarded(cmd_addgrade)))
     app.add_handler(CommandHandler("delete",   guarded(cmd_delete)))
+    app.add_handler(CommandHandler("users",    guarded(cmd_users)))
 
     # Callback-кнопки
     app.add_handler(CallbackQueryHandler(callback_router))
@@ -204,6 +207,7 @@ def main():
             BotCommand("counter", "Номер накладной (адм.)"),
             BotCommand("addgrade", "Добавить новую марку асфальта"),
             BotCommand("delete",   "Удалить запись из базы"),
+            BotCommand("users",    "Управление пользователями"),
             BotCommand("help",    "Список команд"),
         ])
 
@@ -215,3 +219,35 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+async def callback_user_access(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    if data.startswith("allow_"):
+        user_id = int(data.split("_")[1])
+        try:
+            from utils.database import add_allowed_user
+            chat = await context.bot.get_chat(user_id)
+            name = chat.full_name or str(user_id)
+            add_allowed_user(user_id, name)
+            await query.edit_message_text("Доступ разрешён: " + name)
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="Доступ разрешён! Напишите /start"
+            )
+        except Exception as e:
+            await query.edit_message_text("Ошибка: " + str(e))
+
+    elif data.startswith("deny_"):
+        user_id = int(data.split("_")[1])
+        await query.edit_message_text("Доступ отклонён для ID: " + str(user_id))
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="В доступе отказано. Обратитесь к администратору."
+            )
+        except Exception:
+            pass
