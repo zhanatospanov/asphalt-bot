@@ -401,22 +401,23 @@ async def cmd_delete(update, context):
 
 async def callback_delete(update, context):
     from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-    import sqlite3, os
+    from utils.database import get_conn, _q
     query = update.callback_query
     await query.answer()
     data = query.data
 
-    db_path = os.environ.get("DB_PATH", "asphalt_bot.db")
-
     def get_rows(table, name_col):
-        conn = sqlite3.connect(db_path)
-        rows = conn.execute(f"SELECT id, {name_col} FROM {table} ORDER BY {name_col}").fetchall()
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute(f"SELECT id, {name_col} FROM {table} ORDER BY {name_col}")
+        rows = c.fetchall()
         conn.close()
         return rows
 
     def del_row(table, row_id):
-        conn = sqlite3.connect(db_path)
-        conn.execute(f"DELETE FROM {table} WHERE id=?", (row_id,))
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute(_q(f"DELETE FROM {table} WHERE id=?"), (row_id,))
         conn.commit()
         conn.close()
 
@@ -432,11 +433,13 @@ async def callback_delete(update, context):
         table, col, title = menus[data]
         if table == "trips":
             # для рейсов показываем последние 20
-            conn = sqlite3.connect(db_path)
-            rows = conn.execute(
+            conn = get_conn()
+            c = conn.cursor()
+            c.execute(
                 "SELECT id, doc_number, trip_date, vehicle_number, buyer_name "
                 "FROM trips ORDER BY id DESC LIMIT 20"
-            ).fetchall()
+            )
+            rows = c.fetchall()
             conn.close()
             if not rows:
                 await query.edit_message_text("Рейсов нет.")
