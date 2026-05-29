@@ -86,13 +86,7 @@ class States:
 
     # Настройки компании
     COMPANY_NAME = "company_name"
-    COMPANY_BIN = "company_bin"
-    COMPANY_ADDRESS = "company_address"
-    COMPANY_PHONE = "company_phone"
-    COMPANY_BANK = "company_bank"
-    COMPANY_BIK = "company_bik"
-    COMPANY_IBAN = "company_iban"
-    COMPANY_DIRECTOR = "company_director"
+    COMPANY_BIN  = "company_bin"
 
     # Отчёт
     REPORT_DATE_FROM = "report_date_from"
