@@ -11,7 +11,7 @@ from utils.pdf_generator import generate_all_docs
 async def cmd_trip(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /рейс — начало взвешивания."""
     user_id = update.effective_user.id
-    session = get_session(user_id)
+    session = get_session()
 
     missing = []
     if not session.buyer_id:
@@ -82,7 +82,7 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             set_temp(user_id, "net", net)
             set_state(user_id, States.TRIP_CONFIRM)
 
-            session = get_session(user_id)
+            session = get_session()
             vehicle = get_temp(user_id, "vehicle")
 
             kb = InlineKeyboardMarkup([
@@ -118,7 +118,7 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text("❌ Рейс отменён.")
         return
 
-    session = get_session(user_id)
+    session = get_session()
     now = datetime.now()
     doc_num = get_next_doc_number()
 

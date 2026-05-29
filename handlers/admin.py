@@ -25,7 +25,7 @@ async def cmd_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         buttons.append([InlineKeyboardButton(g["name"], callback_data=f"grade_{g['id']}")])
     buttons.append([InlineKeyboardButton("➕ Другая марка", callback_data="grade_new")])
 
-    session = get_session(user_id)
+    session = get_session()
     current = f"\n\n✅ Текущая: <b>{session.asphalt_grade}</b>" if session.asphalt_grade else ""
 
     await update.message.reply_text(
@@ -314,7 +314,7 @@ TEMP_STATE = "set_temperature"
 async def cmd_temperature(update, context):
     from utils.session import get_session
     user_id = update.effective_user.id
-    session = get_session(user_id)
+    session = get_session()
     set_state(user_id, TEMP_STATE)
     await update.message.reply_text(
         f"🌡 Текущая температура: <b>{session.temperature} °C</b>\n\n"
