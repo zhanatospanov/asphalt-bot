@@ -34,7 +34,9 @@ def _load_session() -> Session:
         return _session
     try:
         from utils.database import get_current_session
+        import logging
         row = get_current_session()
+        logging.getLogger(__name__).info(f"Session loaded from DB: {dict(row)}")
         _session = Session(
             buyer_id      = row.get("buyer_id"),
             buyer_name    = row.get("buyer_name"),
@@ -45,7 +47,9 @@ def _load_session() -> Session:
             asphalt_grade = row.get("asphalt_grade"),
             temperature   = row.get("temperature") or 160,
         )
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Session load error: {e}")
         _session = Session()
     return _session
 

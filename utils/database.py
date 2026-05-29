@@ -102,6 +102,28 @@ def init_db():
     """)
     c.execute("INSERT OR IGNORE INTO current_session (id, temperature) VALUES (1, 160)")
 
+    # Миграция: добавляем колонки если их нет (для старых БД)
+    existing_cols = {r[1] for r in c.execute("PRAGMA table_info(current_session)").fetchall()}
+    for col, typedef in [
+        ("buyer_id",      "INTEGER"),
+        ("buyer_name",    "TEXT"),
+        ("buyer_bin",     "TEXT"),
+        ("buyer_address", "TEXT"),
+        ("object_id",     "INTEGER"),
+        ("object_name",   "TEXT"),
+        ("asphalt_grade", "TEXT"),
+        ("temperature",   "INTEGER DEFAULT 160"),
+    ]:
+        if col not in existing_cols:
+            c.execute(f"ALTER TABLE current_session ADD COLUMN {col} {typedef}")
+
+    # Миграция trips: object_name, temperature
+    trip_cols = {r[1] for r in c.execute("PRAGMA table_info(trips)").fetchall()}
+    if "object_name" not in trip_cols:
+        c.execute("ALTER TABLE trips ADD COLUMN object_name TEXT")
+    if "temperature" not in trip_cols:
+        c.execute("ALTER TABLE trips ADD COLUMN temperature INTEGER DEFAULT 160")
+
     # Счётчик номеров накладных
     c.execute("""
         CREATE TABLE IF NOT EXISTS doc_counter (
