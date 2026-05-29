@@ -490,3 +490,33 @@ async def callback_delete(update, context):
             del_row(table, row_id)
             await query.edit_message_text(f"Запись удалена.")
             return
+
+
+# ── Управление пользователями ─────────────────────────────────────────────────
+
+async def cmd_users(update, context):
+    from utils.database import get_allowed_users, remove_allowed_user
+    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    users = get_allowed_users()
+    if not users:
+        await update.message.reply_text("Список пользователей пуст.")
+        return
+    buttons = []
+    for u in users:
+        buttons.append([InlineKeyboardButton(
+            "❌ " + (u.get("name") or str(u["telegram_id"])),
+            callback_data="deluser_" + str(u["telegram_id"])
+        )])
+    await update.message.reply_text(
+        "Пользователи (нажми чтобы удалить):",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+
+async def callback_users(update, context):
+    from utils.database import remove_allowed_user
+    query = update.callback_query
+    await query.answer()
+    tid = int(query.data.split("_")[1])
+    remove_allowed_user(tid)
+    await query.edit_message_text("Пользователь удалён.")
