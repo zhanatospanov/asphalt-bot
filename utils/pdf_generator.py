@@ -134,49 +134,62 @@ def _draw_passport(c, trip, company, buyer, top_y):
     y -= 2*mm
 
     # ── Таблица ───────────────────────────────────────────────────────────────
-    # Ширины фиксированных колонок (однострочные заголовки, достаточно места)
-    W1 =  8*mm   # №
-    W3 = 20*mm   # Ед. изм.
-    W4 = 32*mm   # Тара, кг
-    W5 = 36*mm   # Общий вес, кг
-    W6 = 32*mm   # Кол-во, кг
-    W2 = rw - W1 - W3 - W4 - W5 - W6   # Наименование — остаток
+    from reportlab.platypus import Paragraph
+    from reportlab.lib.styles import ParagraphStyle
 
-    TH = 7*mm    # высота заголовка
-    DR = 9*mm    # высота строки данных
-    TR = 6*mm    # высота строки итого
+    W1 =  8*mm
+    W3 = 20*mm
+    W4 = 32*mm
+    W5 = 36*mm
+    W6 = 32*mm
+    W2 = rw - W1 - W3 - W4 - W5 - W6
+
+    TH = 7*mm
+    TR = 6*mm
+
+    # Вычисляем высоту строки данных по длине названия
+    _style = ParagraphStyle("g", fontName="DJ", fontSize=7.5, leading=10)
+    _p = Paragraph(grade, _style)
+    _pw, _ph = _p.wrap(W2 - 4*mm, 999)
+    DR = max(9*mm, _ph + 4*mm)
 
     cols = [
-        ("№",               W1, "center"),
-        ("Наименование",    W2, "center"),
-        ("Ед. изм.",        W3, "center"),
-        ("Тара, кг",        W4, "center"),
-        ("Общий вес, кг",   W5, "center"),
-        ("Кол-во, кг",      W6, "center"),
+        ("№",             W1),
+        ("Наименование",  W2),
+        ("Ед. изм.",      W3),
+        ("Тара, кг",      W4),
+        ("Общий вес, кг", W5),
+        ("Кол-во, кг",    W6),
     ]
 
     # Заголовок
     xc = m
-    for (h, w, a) in cols:
+    for (h, w) in cols:
         box(xc, y-TH, w, TH, gray=0.88)
         ctxt(xc, y-TH, w, TH, h, bold=True, size=6.5, align="center")
         xc += w
     y -= TH
 
-    # Данные
-    data = [
-        ("1",            W1, "center"),
-        (grade,          W2, "left"),
-        ("кг",           W3, "center"),
-        (_fmt_w(tare_kg), W4, "center"),
-        (_fmt_w(gross_kg),W5, "center"),
-        (_fmt_w(net_kg),  W6, "center"),
+    # Строка данных — все кроме наименования через ctxt
+    simple = [
+        ("1",             W1, "center"),
+        ("кг",            W3, "center"),
+        (_fmt_w(tare_kg),  W4, "center"),
+        (_fmt_w(gross_kg), W5, "center"),
+        (_fmt_w(net_kg),   W6, "center"),
     ]
-    xc = m
-    for (v, w, a) in data:
-        box(xc, y-DR, w, DR)
-        ctxt(xc, y-DR, w, DR, v, size=7.5, align=a)
-        xc += w
+    offsets = [W1, W1+W2, W1+W2+W3, W1+W2+W3+W4, W1+W2+W3+W4+W5]
+    for (v, w), ox in zip([("1",W1),("кг",W3),(_fmt_w(tare_kg),W4),(_fmt_w(gross_kg),W5),(_fmt_w(net_kg),W6)],
+                           [0, W1+W2, W1+W2+W3, W1+W2+W3+W4, W1+W2+W3+W4+W5]):
+        box(m+ox, y-DR, w, DR)
+        ctxt(m+ox, y-DR, w, DR, v, size=7.5, align="center")
+
+    # Ячейка наименования с переносом
+    box(m+W1, y-DR, W2, DR)
+    _p2 = Paragraph(grade, _style)
+    _p2.wrap(W2 - 4*mm, DR)
+    _p2.drawOn(c, m+W1+2*mm, y-DR+DR/2-_ph/2)
+
     y -= DR
 
     # Итого
