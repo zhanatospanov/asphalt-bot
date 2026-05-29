@@ -199,13 +199,7 @@ async def _send_report_msg(message_or_update, date_from, date_to):
 
 COMPANY_FIELDS = [
     ("name", "company_name", "Наименование организации"),
-    ("bin", "company_bin", "БИН"),
-    ("address", "company_address", "Адрес"),
-    ("phone", "company_phone", "Телефон"),
-    ("bank", "company_bank", "Наименование банка"),
-    ("bik", "company_bik", "БИК банка"),
-    ("iban", "company_iban", "IBAN (расчётный счёт)"),
-    ("director", "company_director", "ФИО директора"),
+    ("bin",  "company_bin",  "БИН"),
 ]
 
 
