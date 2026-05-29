@@ -211,10 +211,6 @@ COMPANY_FIELDS = [
 
 async def cmd_company(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if not is_admin(user_id):
-        await update.message.reply_text("⛔ Только для администраторов.")
-        return
-
     company = get_company()
     lines = ["⚙️ <b>Реквизиты завода:</b>\n"]
     for key, _, label in COMPANY_FIELDS:
@@ -281,10 +277,6 @@ async def handle_company_input(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def cmd_set_counter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if not is_admin(user_id):
-        await update.message.reply_text("⛔ Только для администраторов.")
-        return
-
     set_state(user_id, States.SET_COUNTER)
     await update.message.reply_text(
         "🔢 Введите новый начальный номер накладной\n"
