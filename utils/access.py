@@ -1,13 +1,9 @@
-"""Управление доступом."""
+"""Управление доступом — через БД + ADMIN_IDS из env."""
 import os
 
-# Telegram user_id тех, кто может работать с ботом
-# Задаются через переменные среды: ADMIN_IDS, WEIGHER_IDS
-# Несколько ID разделяются запятой: "123456,789012"
 
-
-def _parse_ids(env_var: str) -> set[int]:
-    raw = os.environ.get(env_var, "")
+def get_admin_ids() -> set:
+    raw = os.environ.get("ADMIN_IDS", "")
     if not raw.strip():
         return set()
     try:
@@ -16,25 +12,17 @@ def _parse_ids(env_var: str) -> set[int]:
         return set()
 
 
-def get_admin_ids() -> set[int]:
-    return _parse_ids("ADMIN_IDS")
-
-
-def get_weigher_ids() -> set[int]:
-    return _parse_ids("WEIGHER_IDS")
-
-
-def get_all_allowed() -> set[int]:
-    return get_admin_ids() | get_weigher_ids()
-
-
 def is_admin(user_id: int) -> bool:
     return user_id in get_admin_ids()
 
 
 def is_allowed(user_id: int) -> bool:
-    allowed = get_all_allowed()
-    # Если список пуст — разрешаем всем (режим первой настройки)
-    if not allowed:
+    # Администраторы всегда разрешены
+    if is_admin(user_id):
         return True
-    return user_id in allowed
+    # Остальные — проверяем в БД
+    try:
+        from utils.database import is_user_allowed
+        return is_user_allowed(user_id)
+    except Exception:
+        return False

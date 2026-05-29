@@ -128,6 +128,17 @@ def init_db():
         c.execute("INSERT OR IGNORE INTO doc_counter (id, current_number, year) VALUES (1, 1, ?)",
                   (current_year,))
 
+    # Таблица разрешённых пользователей
+    c.execute(_auto("""
+        CREATE TABLE IF NOT EXISTS allowed_users (
+            id INTEGER PRIMARY KEY,
+            telegram_id BIGINT NOT NULL UNIQUE,
+            name TEXT,
+            role TEXT DEFAULT 'weigher',
+            added_at TEXT
+        )
+    """))
+
     # Стандартные марки
     STANDARD_GRADES = [
         "Смесь асфальтобетонная дорожная горячая крупнозернистая плотная тип А, марка I",
@@ -378,5 +389,53 @@ def save_current_session(data: dict):
     else:
         sets = ", ".join(f"{k}=?" for k in data)
     c.execute(f"UPDATE current_session SET {sets} WHERE id=1", list(data.values()))
+    conn.commit()
+    conn.close()
+
+
+# ── Пользователи ──────────────────────────────────────────────────────────────
+
+def get_allowed_users():
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT * FROM allowed_users ORDER BY name")
+    rows = _rows(c)
+    conn.close()
+    return rows
+
+
+def is_user_allowed(telegram_id: int) -> bool:
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(_q("SELECT id FROM allowed_users WHERE telegram_id=?"), (telegram_id,))
+    row = _row(c)
+    conn.close()
+    return row is not None
+
+
+def add_allowed_user(telegram_id: int, name: str, role: str = "weigher"):
+    conn = get_conn()
+    c = conn.cursor()
+    now = datetime.now().isoformat()
+    if USE_PG:
+        c.execute(
+            "INSERT INTO allowed_users (telegram_id, name, role, added_at) "
+            "VALUES (%s,%s,%s,%s) ON CONFLICT (telegram_id) DO UPDATE SET name=EXCLUDED.name",
+            (telegram_id, name, role, now)
+        )
+    else:
+        c.execute(
+            "INSERT OR REPLACE INTO allowed_users (telegram_id, name, role, added_at) "
+            "VALUES (?,?,?,?)",
+            (telegram_id, name, role, now)
+        )
+    conn.commit()
+    conn.close()
+
+
+def remove_allowed_user(telegram_id: int):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute(_q("DELETE FROM allowed_users WHERE telegram_id=?"), (telegram_id,))
     conn.commit()
     conn.close()
