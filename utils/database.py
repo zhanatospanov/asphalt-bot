@@ -131,7 +131,7 @@ def init_db():
     # Таблица разрешённых пользователей
     c.execute(_auto("""
         CREATE TABLE IF NOT EXISTS allowed_users (
-            id INTEGER PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             telegram_id BIGINT NOT NULL UNIQUE,
             name TEXT,
             role TEXT DEFAULT 'weigher',
