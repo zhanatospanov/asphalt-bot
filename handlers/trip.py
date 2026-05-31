@@ -1,5 +1,7 @@
 """Хэндлер основного рабочего процесса — взвешивание рейса."""
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+ASTANA_TZ = timezone(timedelta(hours=5))
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes
 
@@ -39,7 +41,7 @@ async def cmd_trip(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Объект: " + (session.object_name or "") + "\n"
         "Марка: " + (session.asphalt_grade or "") + "\n"
         "Температура: " + str(session.temperature) + " C\n\n"
-        "Введите гос. номер автомобиля:"
+        "Введите гос. номер автомобиля и ФИО водителя:"
     )
 
 
@@ -131,7 +133,7 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     session = get_session()
-    now = datetime.now()
+    now = datetime.now(ASTANA_TZ)
     doc_num = get_next_doc_number()
 
     trip_data = {
@@ -139,6 +141,7 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
         "trip_date":      now.strftime("%Y-%m-%d"),
         "trip_time":      now.strftime("%H:%M"),
         "vehicle_number": get_temp(user_id, "vehicle"),
+        "driver_name":    get_temp(user_id, "driver") or "",
         "buyer_id":       session.buyer_id,
         "buyer_name":     session.buyer_name,
         "asphalt_grade":  session.asphalt_grade,
