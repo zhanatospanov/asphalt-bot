@@ -20,9 +20,14 @@ async def cmd_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     grades = get_grades()
 
+    def short_grade(name):
+        n = name.replace("Смесь асфальтобетонная дорожная горячая ", "")
+        n = n.replace(", марка ", " м.")
+        return n
+
     buttons = []
     for g in grades:
-        buttons.append([InlineKeyboardButton(g["name"], callback_data=f"grade_{g['id']}")])
+        buttons.append([InlineKeyboardButton(short_grade(g["name"]), callback_data="grade_" + str(g["id"]))])
     buttons.append([InlineKeyboardButton("➕ Другая марка", callback_data="grade_new")])
 
     session = get_session()

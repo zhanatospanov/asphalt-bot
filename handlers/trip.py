@@ -189,5 +189,24 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
     if msg.document:
         update_trip_pdf(trip_id, msg.document.file_id)
 
+    # Уведомление администраторам
+    from utils.access import get_admin_ids
+    for admin_id in get_admin_ids():
+        if admin_id != user_id:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=(
+                        "Новая накладная № " + str(doc_num) + "\n"
+                        + now.strftime("%d.%m.%Y %H:%M") + "\n"
+                        + "Авто: " + str(trip_data["vehicle_number"]) + "\n"
+                        + "Покупатель: " + str(session.buyer_name) + "\n"
+                        + "Объект: " + str(session.object_name) + "\n"
+                        + "Нетто: " + str(round(trip_data["net_kg"]/1000, 3)) + " т"
+                    )
+                )
+            except Exception:
+                pass
+
     set_state(user_id, None)
     clear_temp(user_id)
