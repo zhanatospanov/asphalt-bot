@@ -7,41 +7,43 @@ from utils.session import get_session, set_state, get_state, set_temp, get_temp,
 from utils.database import get_company, get_next_doc_number, save_trip, update_trip_pdf
 from utils.pdf_generator import generate_all_docs
 
+MAX_NET_KG = 150_000  # 150 тонн
+
 
 async def cmd_trip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /рейс — начало взвешивания."""
+    import logging
+    log = logging.getLogger(__name__)
     user_id = update.effective_user.id
     session = get_session()
+    log.info("TRIP CHECK: buyer_id=%s object=%s grade=%s", session.buyer_id, session.object_name, session.asphalt_grade)
 
     missing = []
     if not session.buyer_id:
-        missing.append("👤 /покупатель")
+        missing.append("👤 /buyer")
     if not session.object_name:
-        missing.append("🏗 /объект")
+        missing.append("🏗 /obj")
     if not session.asphalt_grade:
-        missing.append("🏷 /марка")
+        missing.append("🏷 /grade")
 
     if missing:
         await update.message.reply_text(
-            "⚠️ Сначала задайте:\n" + "\n".join(missing)
+            "Сначала задайте:\n" + "\n".join(missing)
         )
         return
 
     clear_temp(user_id)
     set_state(user_id, States.TRIP_VEHICLE)
     await update.message.reply_text(
-        f"🚛 Новый рейс\n"
-        f"👤 Покупатель: <b>{session.buyer_name}</b>\n"
-        f"🏗 Объект: <b>{session.object_name}</b>\n"
-        f"🏷 Марка: <b>{session.asphalt_grade}</b>\n"
-        f"🌡 Температура: <b>{session.temperature} °C</b>\n\n"
-        f"Введите гос. номер автомобиля:",
-        parse_mode="HTML"
+        "Новый рейс\n"
+        "Покупатель: " + (session.buyer_name or "") + "\n"
+        "Объект: " + (session.object_name or "") + "\n"
+        "Марка: " + (session.asphalt_grade or "") + "\n"
+        "Температура: " + str(session.temperature) + " C\n\n"
+        "Введите гос. номер автомобиля:"
     )
 
 
 async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Пошаговый ввод данных рейса."""
     user_id = update.effective_user.id
     state = get_state(user_id)
     text = update.message.text.strip()
@@ -50,8 +52,7 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         set_temp(user_id, "vehicle", text.upper())
         set_state(user_id, States.TRIP_TARE)
         await update.message.reply_text(
-            f"✅ Авто: <b>{text.upper()}</b>\n\nВведите массу тары (кг):",
-            parse_mode="HTML"
+            "Авто: " + text.upper() + "\n\nВведите массу тары (кг):"
         )
 
     elif state == States.TRIP_TARE:
@@ -62,11 +63,10 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             set_temp(user_id, "tare", tare)
             set_state(user_id, States.TRIP_GROSS)
             await update.message.reply_text(
-                f"✅ Тара: <b>{int(tare):,} кг</b>\n\nВведите массу брутто (кг):",
-                parse_mode="HTML"
+                "Тара: " + str(int(tare)) + " кг\n\nВведите массу брутто (кг):"
             )
         except ValueError:
-            await update.message.reply_text("❌ Введите число в кг, например: 19500")
+            await update.message.reply_text("Введите число в кг, например: 19500")
 
     elif state == States.TRIP_GROSS:
         try:
@@ -74,7 +74,7 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tare = get_temp(user_id, "tare")
             if gross <= tare:
                 await update.message.reply_text(
-                    f"❌ Брутто ({int(gross):,} кг) должно быть больше тары ({int(tare):,} кг)"
+                    "Брутто (" + str(int(gross)) + " кг) должно быть больше тары (" + str(int(tare)) + " кг)"
                 )
                 return
             net = gross - tare
@@ -85,26 +85,38 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session = get_session()
             vehicle = get_temp(user_id, "vehicle")
 
+            # Предупреждение если нетто > 150 тонн
+            if net > MAX_NET_KG:
+                await update.message.reply_text(
+                    "ВНИМАНИЕ! Масса нетто " + str(round(net/1000, 3)) + " т превышает 150 тонн.\n"
+                    "Проверьте правильность данных.\n\n"
+                    "Продолжить?",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("Да, продолжить", callback_data="trip_confirm"),
+                        InlineKeyboardButton("Отмена", callback_data="trip_cancel"),
+                    ]])
+                )
+                return
+
             kb = InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Подтвердить и создать накладную", callback_data="trip_confirm")],
-                [InlineKeyboardButton("❌ Отмена", callback_data="trip_cancel")],
+                [InlineKeyboardButton("Подтвердить и создать накладную", callback_data="trip_confirm")],
+                [InlineKeyboardButton("Отмена", callback_data="trip_cancel")],
             ])
 
             await update.message.reply_text(
-                f"📋 <b>Проверьте данные рейса:</b>\n\n"
-                f"🚛 Авто:         <code>{vehicle}</code>\n"
-                f"👤 Покупатель: {session.buyer_name}\n"
-                f"🏗 Объект:      {session.object_name}\n"
-                f"🏷 Марка:       {session.asphalt_grade}\n\n"
-                f"⚖️ Тара:    <b>{int(tare):>10,} кг</b>\n"
-                f"⚖️ Брутто:  <b>{int(gross):>10,} кг</b>\n"
-                f"⚖️ Нетто:   <b>{int(net):>10,} кг</b>\n"
-                f"🌡 Температура: <b>{session.temperature} °C</b>",
-                parse_mode="HTML",
+                "Проверьте данные рейса:\n\n"
+                "Авто: " + vehicle + "\n"
+                "Покупатель: " + (session.buyer_name or "") + "\n"
+                "Объект: " + (session.object_name or "") + "\n"
+                "Марка: " + (session.asphalt_grade or "") + "\n\n"
+                "Тара:   " + str(int(tare)) + " кг\n"
+                "Брутто: " + str(int(gross)) + " кг\n"
+                "Нетто:  " + str(int(net)) + " кг\n"
+                "Температура: " + str(session.temperature) + " C",
                 reply_markup=kb
             )
         except ValueError:
-            await update.message.reply_text("❌ Введите число в кг, например: 52900")
+            await update.message.reply_text("Введите число в кг, например: 52900")
 
 
 async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -115,7 +127,7 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
     if query.data == "trip_cancel":
         set_state(user_id, None)
         clear_temp(user_id)
-        await query.edit_message_text("❌ Рейс отменён.")
+        await query.edit_message_text("Рейс отменён.")
         return
 
     session = get_session()
@@ -123,24 +135,23 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
     doc_num = get_next_doc_number()
 
     trip_data = {
-        "doc_number":    doc_num,
-        "trip_date":     now.strftime("%Y-%m-%d"),
-        "trip_time":     now.strftime("%H:%M"),
+        "doc_number":     doc_num,
+        "trip_date":      now.strftime("%Y-%m-%d"),
+        "trip_time":      now.strftime("%H:%M"),
         "vehicle_number": get_temp(user_id, "vehicle"),
-        "buyer_id":      session.buyer_id,
-        "buyer_name":    session.buyer_name,
-        "asphalt_grade": session.asphalt_grade,
-        "object_name":   session.object_name,
-        "temperature":   session.temperature,
-        "tare_kg":       get_temp(user_id, "tare"),
-        "gross_kg":      get_temp(user_id, "gross"),
-        "net_kg":        get_temp(user_id, "net"),
-        "created_by":    user_id,
+        "buyer_id":       session.buyer_id,
+        "buyer_name":     session.buyer_name,
+        "asphalt_grade":  session.asphalt_grade,
+        "object_name":    session.object_name,
+        "temperature":    session.temperature,
+        "tare_kg":        get_temp(user_id, "tare"),
+        "gross_kg":       get_temp(user_id, "gross"),
+        "net_kg":         get_temp(user_id, "net"),
+        "created_by":     user_id,
     }
 
     trip_id = save_trip(trip_data)
-
-    await query.edit_message_text(f"⏳ Формирую паспорт-накладную № {doc_num}...")
+    await query.edit_message_text("Формирую паспорт-накладную № " + str(doc_num) + "...")
 
     company = get_company()
     buyer = {
@@ -152,22 +163,23 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
     pdf_bytes = generate_all_docs(trip_data, company, buyer)
 
     filename = (
-        f"Накладная_{doc_num}_{now.strftime('%d%m%Y')}"
-        f"_{trip_data['vehicle_number']}.pdf"
+        "Накладная_" + str(doc_num) + "_"
+        + now.strftime("%d%m%Y") + "_"
+        + str(trip_data["vehicle_number"]) + ".pdf"
     )
 
+    net_kg = trip_data["net_kg"]
     msg = await query.message.reply_document(
         document=pdf_bytes,
         filename=filename,
         caption=(
-            f"📄 Паспорт-накладная № {doc_num}\n"
-            f"📅 {now.strftime('%d.%m.%Y')}  {trip_data['trip_time']}\n"
-            f"🚛 {trip_data['vehicle_number']}\n"
-            f"👤 {session.buyer_name}\n"
-            f"🏗 {session.object_name}\n"
-            f"⚖️ Нетто: {int(trip_data['net_kg']):,} кг  "
-            f"({trip_data['net_kg']/1000:.3f} т)\n\n"
-            f"🖨 Распечатайте 2 экземпляра (верхний и нижний)"
+            "Паспорт-накладная № " + str(doc_num) + "\n"
+            + now.strftime("%d.%m.%Y") + "  " + trip_data["trip_time"] + "\n"
+            + str(trip_data["vehicle_number"]) + "\n"
+            + str(session.buyer_name) + "\n"
+            + str(session.object_name) + "\n"
+            + "Нетто: " + str(int(net_kg)) + " кг  (" + str(round(net_kg/1000, 3)) + " т)\n\n"
+            + "Распечатайте 2 экземпляра (верхний и нижний)"
         )
     )
 
