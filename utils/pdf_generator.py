@@ -213,7 +213,8 @@ def _draw_passport(c, trip, company, buyer, top_y):
 
     # ── Подписи ──────────────────────────────────────────────────────────────
     sw = rw/2 - 6*mm
-    for (label, sx) in [("Весовщик:", m), ("Водитель:", m+sw+12*mm)]:
+    driver_name = trip.get("driver_name", "") or ""
+    for (label, sx) in [("Весовщик:", m), ("Водитель:  " + driver_name, m+sw+12*mm)]:
         txt(sx, y, label, bold=True, size=7.5)
         c.setLineWidth(0.5)
         c.line(sx+22*mm, y-1*mm,  sx+sw, y-1*mm)
