@@ -50,6 +50,10 @@ async def message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if not is_allowed(user_id):
+        await update.message.reply_text("У вас нет доступа.")
+        return
+
+    if not is_allowed(user_id):
         await update.message.reply_text("⛔ У вас нет доступа к этому боту.")
         return
 
@@ -176,6 +180,10 @@ async def callback_user_access(update: Update, context: ContextTypes.DEFAULT_TYP
 async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
+    user_id = query.from_user.id
+    if not is_allowed(user_id) and not data.startswith("allow_") and not data.startswith("deny_"):
+        await query.answer("Нет доступа.")
+        return
 
     if data.startswith("trip_"):
         await callback_trip_confirm(update, context)
