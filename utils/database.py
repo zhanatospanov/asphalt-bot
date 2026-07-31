@@ -109,9 +109,38 @@ def init_db():
     """))
 
     if USE_PG:
-        c.execute("INSERT INTO current_session (id, temperature) VALUES (1, 160) ON CONFLICT DO NOTHING")
+        c.execute("INSERT INTO current_session (id, temperature, mode) VALUES (1, 160, 'asphalt') ON CONFLICT DO NOTHING")
     else:
-        c.execute("INSERT OR IGNORE INTO current_session (id, temperature) VALUES (1, 160)")
+        c.execute("INSERT OR IGNORE INTO current_session (id, temperature, mode) VALUES (1, 160, 'asphalt')")
+
+    c.execute(_auto("""
+        CREATE TABLE IF NOT EXISTS inert_grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            unit TEXT DEFAULT 'т',
+            active INTEGER DEFAULT 1
+        )
+    """))
+
+    # Стандартные инертные материалы
+    STANDARD_INERT = [
+        "Щебень фракция 0-5 мм (отсев)",
+        "Щебень фракция 5-10 мм",
+        "Щебень фракция 5-20 мм",
+        "Щебень фракция 10-20 мм",
+        "Щебень фракция 20-40 мм",
+        "Щебень фракция 40-70 мм",
+        "Щебень фракция 70-120 мм",
+        "Скальник",
+        "Песок природный",
+        "Песчано-гравийная смесь (ПГС)",
+        "Грунт",
+    ]
+    c.execute("SELECT name FROM inert_grades")
+    existing_inert = {r[0] for r in c.fetchall()}
+    for g in STANDARD_INERT:
+        if g not in existing_inert:
+            c.execute(_q("INSERT INTO inert_grades (name) VALUES (?)"), (g,))
 
     c.execute(_auto("""
         CREATE TABLE IF NOT EXISTS doc_counter (
@@ -439,3 +468,28 @@ def remove_allowed_user(telegram_id: int):
     c.execute(_q("DELETE FROM allowed_users WHERE telegram_id=?"), (telegram_id,))
     conn.commit()
     conn.close()
+
+
+# ── Инертные материалы ────────────────────────────────────────────────────────
+
+def get_inert_grades():
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT * FROM inert_grades WHERE active=1 ORDER BY name")
+    rows = _rows(c)
+    conn.close()
+    return rows
+
+
+def add_inert_grade(name: str, unit: str = "т") -> int:
+    conn = get_conn()
+    c = conn.cursor()
+    if USE_PG:
+        c.execute("INSERT INTO inert_grades (name, unit) VALUES (%s,%s) RETURNING id", (name, unit))
+        gid = c.fetchone()[0]
+    else:
+        c.execute("INSERT INTO inert_grades (name, unit) VALUES (?,?)", (name, unit))
+        gid = c.lastrowid
+    conn.commit()
+    conn.close()
+    return gid

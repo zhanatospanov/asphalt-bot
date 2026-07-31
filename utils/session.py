@@ -15,6 +15,7 @@ class Session:
     object_name:   Optional[str] = None
     asphalt_grade: Optional[str] = None
     temperature:   int = 160
+    mode:          str = "asphalt"   # "asphalt" | "inert"
     state:         Optional[str] = None
     temp_data:     dict = field(default_factory=dict)
 
@@ -38,30 +39,12 @@ def _load_session() -> Session:
             object_name   = row.get("object_name"),
             asphalt_grade = row.get("asphalt_grade"),
             temperature   = row.get("temperature") or 160,
+            mode          = row.get("mode") or "asphalt",
         )
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Session load error: {e}")
         return Session()
-
-
-def _persist():
-    """Сохраняет текущую сессию в БД."""
-    s = _load_session()
-    try:
-        from utils.database import save_current_session
-        save_current_session({
-            "buyer_id":      s.buyer_id,
-            "buyer_name":    s.buyer_name,
-            "buyer_bin":     s.buyer_bin,
-            "buyer_address": s.buyer_address,
-            "object_id":     s.object_id,
-            "object_name":   s.object_name,
-            "asphalt_grade": s.asphalt_grade,
-            "temperature":   s.temperature,
-        })
-    except Exception:
-        pass
 
 
 def get_session(user_id: int = 0) -> Session:
@@ -103,17 +86,17 @@ def update_session(**kwargs):
 
 
 class States:
-    OBJECT_NEW_NAME  = "object_new_name"
-    BUYER_NEW_NAME   = "buyer_new_name"
-    BUYER_NEW_BIN    = "buyer_new_bin"
+    OBJECT_NEW_NAME   = "object_new_name"
+    BUYER_NEW_NAME    = "buyer_new_name"
+    BUYER_NEW_BIN     = "buyer_new_bin"
     BUYER_NEW_ADDRESS = "buyer_new_address"
-    GRADE_SELECT     = "grade_select"
-    TRIP_VEHICLE     = "trip_vehicle"
-    TRIP_TARE        = "trip_tare"
-    TRIP_GROSS       = "trip_gross"
-    TRIP_CONFIRM     = "trip_confirm"
-    COMPANY_NAME     = "company_name"
-    COMPANY_BIN      = "company_bin"
-    REPORT_DATE_FROM = "report_date_from"
-    REPORT_DATE_TO   = "report_date_to"
-    SET_COUNTER      = "set_counter"
+    GRADE_SELECT      = "grade_select"
+    TRIP_VEHICLE      = "trip_vehicle"
+    TRIP_TARE         = "trip_tare"
+    TRIP_GROSS        = "trip_gross"
+    TRIP_CONFIRM      = "trip_confirm"
+    COMPANY_NAME      = "company_name"
+    COMPANY_BIN       = "company_bin"
+    REPORT_DATE_FROM  = "report_date_from"
+    REPORT_DATE_TO    = "report_date_to"
+    SET_COUNTER       = "set_counter"

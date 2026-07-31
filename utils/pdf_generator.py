@@ -98,9 +98,18 @@ def _draw_passport(c, trip, company, buyer, top_y):
             c.drawString(x + 2*mm, ty, s)
 
     # ── Заголовок ────────────────────────────────────────────────────────────
-    txt(W/2, y, "ПАСПОРТ-НАКЛАДНАЯ", bold=True, size=11, align="center")
+    mode = trip.get("mode", "asphalt")
+    if mode == "inert":
+        title1 = "НАКЛАДНАЯ"
+        grade_name = trip.get("asphalt_grade", "")
+        title2 = "на " + grade_name.lower() if grade_name else "на инертный материал"
+    else:
+        title1 = "ПАСПОРТ-НАКЛАДНАЯ"
+        title2 = "на асфальтобетонную смесь"
+
+    txt(W/2, y, title1, bold=True, size=11, align="center")
     y -= 5.5*mm
-    txt(W/2, y, "на асфальтобетонную смесь", size=8.5, align="center")
+    txt(W/2, y, title2, size=8.5, align="center")
     y -= 5*mm
     txt(m, y, f"№  {doc_num}", bold=True, size=9)
     txt(m+rw, y, f"от  {trip_date}", size=8.5, align="right")
@@ -207,9 +216,11 @@ def _draw_passport(c, trip, company, buyer, top_y):
         xc += w
     y -= TR + 4*mm
 
-    # ── Температура ──────────────────────────────────────────────────────────
-    txt(m, y, f"Температура смеси при отгрузке:  {temp_c} °C", size=8)
-    y -= lh+2*mm; hline(y); y -= 5*mm
+    # ── Температура (только для асфальта) ───────────────────────────────────
+    if trip.get("mode", "asphalt") == "asphalt":
+        txt(m, y, f"Температура смеси при отгрузке:  {temp_c} °C", size=8)
+        y -= lh+2*mm
+    hline(y); y -= 5*mm
 
     # ── Подписи ──────────────────────────────────────────────────────────────
     sw = rw/2 - 6*mm
