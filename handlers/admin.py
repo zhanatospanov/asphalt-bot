@@ -17,6 +17,13 @@ from utils.access import is_admin
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def cmd_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Если режим инертные — переходим к другому справочнику
+    session = get_session()
+    if session.mode == "inert":
+        from handlers.mode_handler import cmd_grade_inert
+        await cmd_grade_inert(update, context)
+        return
+
     user_id = update.effective_user.id
     grades = get_grades()
 
