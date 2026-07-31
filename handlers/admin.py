@@ -41,7 +41,7 @@ async def cmd_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current = f"\n\n✅ Текущая: <b>{session.asphalt_grade}</b>" if session.asphalt_grade else ""
 
     await update.message.reply_text(
-        f"🏷 Выберите марку асфальта на сегодня:{current}",
+        f"🏷 Выберите марку асфальта:{current}",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
@@ -403,10 +403,11 @@ async def handle_addgrade_input(update, context):
 async def cmd_delete(update, context):
     from telegram import InlineKeyboardMarkup, InlineKeyboardButton
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👤 Покупатели",      callback_data="del_menu_buyers")],
-        [InlineKeyboardButton("🏗 Объекты",          callback_data="del_menu_objects")],
-        [InlineKeyboardButton("🏷 Марки асфальта",  callback_data="del_menu_grades")],
-        [InlineKeyboardButton("🚛 Рейсы (журнал)",  callback_data="del_menu_trips")],
+        [InlineKeyboardButton("👤 Покупатели",          callback_data="del_menu_buyers")],
+        [InlineKeyboardButton("🏗 Объекты",              callback_data="del_menu_objects")],
+        [InlineKeyboardButton("🏷 Марки асфальта",      callback_data="del_menu_grades")],
+        [InlineKeyboardButton("🪨 Инертные материалы",  callback_data="del_menu_inert")],
+        [InlineKeyboardButton("🚛 Рейсы (журнал)",      callback_data="del_menu_trips")],
     ])
     await update.message.reply_text("🗑 Что удалить?", reply_markup=kb)
 
@@ -437,7 +438,8 @@ async def callback_delete(update, context):
     menus = {
         "del_menu_buyers":  ("buyers",        "name",  "👤 Покупатели"),
         "del_menu_objects": ("objects",        "name",  "🏗 Объекты"),
-        "del_menu_grades":  ("asphalt_grades", "name",  "🏷 Марки"),
+        "del_menu_grades":  ("asphalt_grades", "name",  "🏷 Марки асфальта"),
+        "del_menu_inert":   ("inert_grades",   "name",  "🪨 Инертные"),
         "del_menu_trips":   ("trips",          "vehicle_number", "🚛 Рейсы"),
     }
 
@@ -481,10 +483,11 @@ async def callback_delete(update, context):
 
     if data == "del_back":
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("👤 Покупатели",     callback_data="del_menu_buyers")],
-            [InlineKeyboardButton("🏗 Объекты",         callback_data="del_menu_objects")],
-            [InlineKeyboardButton("🏷 Марки асфальта", callback_data="del_menu_grades")],
-            [InlineKeyboardButton("🚛 Рейсы (журнал)", callback_data="del_menu_trips")],
+            [InlineKeyboardButton("👤 Покупатели",          callback_data="del_menu_buyers")],
+            [InlineKeyboardButton("🏗 Объекты",              callback_data="del_menu_objects")],
+            [InlineKeyboardButton("🏷 Марки асфальта",      callback_data="del_menu_grades")],
+            [InlineKeyboardButton("🪨 Инертные материалы",  callback_data="del_menu_inert")],
+            [InlineKeyboardButton("🚛 Рейсы (журнал)",      callback_data="del_menu_trips")],
         ])
         await query.edit_message_text("🗑 Что удалить?", reply_markup=kb)
         return
@@ -494,6 +497,7 @@ async def callback_delete(update, context):
         "del_buyers":  "buyers",
         "del_objects": "objects",
         "del_grades":  "asphalt_grades",
+        "del_inert":   "inert_grades",
         "del_trips":   "trips",
     }
     for prefix, table in tables_map.items():
