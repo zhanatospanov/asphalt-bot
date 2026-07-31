@@ -17,6 +17,9 @@ from handlers.trip import (
 from handlers.buyer import (
     cmd_buyer, callback_buyer, handle_buyer_input
 )
+from handlers.mode_handler import (
+    cmd_mode, callback_mode, callback_inert_grade, handle_inert_grade_input
+)
 from handlers.object_handler import (
     cmd_object, callback_object, handle_object_input
 )
@@ -86,6 +89,9 @@ async def message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif state == ADDGRADE_STATE:
         await handle_addgrade_input(update, context)
+
+    elif state == "inert_grade_input":
+        await handle_inert_grade_input(update, context)
 
     else:
         await update.message.reply_text(
@@ -203,6 +209,10 @@ async def callback_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await callback_user_access(update, context)
     elif data.startswith("deluser_"):
         await callback_users(update, context)
+    elif data.startswith("mode_"):
+        await callback_mode(update, context)
+    elif data.startswith("inert_"):
+        await callback_inert_grade(update, context)
     else:
         await query.answer("Неизвестная команда")
 
@@ -244,6 +254,7 @@ def main():
     app.add_handler(CommandHandler("counter", guarded(cmd_set_counter)))
     app.add_handler(CommandHandler("temp",    cmd_temperature))
     app.add_handler(CommandHandler("addgrade", cmd_addgrade))
+    app.add_handler(CommandHandler("mode",      cmd_mode))
     app.add_handler(CommandHandler("delete",   guarded(cmd_delete)))
     app.add_handler(CommandHandler("users",    guarded(cmd_users)))
 
@@ -264,7 +275,8 @@ def main():
             BotCommand("report",  "Журнал отпуска в Excel"),
             BotCommand("company", "Реквизиты завода (адм.)"),
             BotCommand("counter", "Номер накладной (адм.)"),
-            BotCommand("addgrade", "Добавить новую марку асфальта"),
+            BotCommand("mode",     "Режим смены: асфальт / инертные"),
+            BotCommand("addgrade", "Добавить новую марку / материал"),
             BotCommand("delete",   "Удалить запись из базы"),
             BotCommand("users",    "Управление пользователями"),
             BotCommand("help",    "Список команд"),
