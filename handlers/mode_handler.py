@@ -27,15 +27,25 @@ async def callback_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == "mode_asphalt":
-        update_session(mode="asphalt")
+        # Авто-выбор первой марки асфальта
+        from utils.database import get_grades
+        grades = get_grades()
+        first_grade = grades[0]["name"] if grades else None
+        update_session(mode="asphalt", asphalt_grade=first_grade)
+        grade_txt = f"\nМарка: <b>{first_grade}</b>" if first_grade else ""
         await query.edit_message_text(
-            "✅ Режим: <b>🔥 Асфальт</b>\n\nТеперь выберите марку через /grade",
+            f"✅ Режим: <b>🔥 Асфальт</b>{grade_txt}\n\nПри необходимости смените марку через /grade",
             parse_mode="HTML"
         )
     elif data == "mode_inert":
-        update_session(mode="inert")
+        # Авто-выбор первого инертного материала
+        from utils.database import get_inert_grades
+        inerts = get_inert_grades()
+        first_inert = inerts[0]["name"] if inerts else None
+        update_session(mode="inert", asphalt_grade=first_inert)
+        inert_txt = f"\nМатериал: <b>{first_inert}</b>" if first_inert else ""
         await query.edit_message_text(
-            "✅ Режим: <b>🪨 Инертные материалы</b>\n\nТеперь выберите материал через /grade",
+            f"✅ Режим: <b>🪨 Инертные материалы</b>{inert_txt}\n\nПри необходимости смените материал через /grade",
             parse_mode="HTML"
         )
 
