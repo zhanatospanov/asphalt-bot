@@ -147,6 +147,7 @@ async def callback_trip_confirm(update: Update, context: ContextTypes.DEFAULT_TY
         "asphalt_grade":  session.asphalt_grade,
         "object_name":    session.object_name,
         "temperature":    session.temperature,
+        "mode":           session.mode,
         "tare_kg":        get_temp(user_id, "tare"),
         "gross_kg":       get_temp(user_id, "gross"),
         "net_kg":         get_temp(user_id, "net"),
