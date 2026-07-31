@@ -35,13 +35,14 @@ async def cmd_trip(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     clear_temp(user_id)
     set_state(user_id, States.TRIP_VEHICLE)
+    temp_str = ("\nТемпература: " + str(session.temperature) + " C") if session.mode != "inert" else ""
+    mat_label = "Марка" if session.mode != "inert" else "Материал"
     await update.message.reply_text(
         "Новый рейс\n"
         "Покупатель: " + (session.buyer_name or "") + "\n"
         "Объект: " + (session.object_name or "") + "\n"
-        "Марка: " + (session.asphalt_grade or "") + "\n"
-        "Температура: " + str(session.temperature) + " C\n\n"
-        "Введите гос. номер автомобиля и ФИО водителя:"
+        + mat_label + ": " + (session.asphalt_grade or "") + temp_str + "\n\n"
+        + "Введите гос. номер автомобиля и ФИО водителя:"
     )
 
 
@@ -105,6 +106,7 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("Отмена", callback_data="trip_cancel")],
             ])
 
+            temp_line = ("\nТемпература: " + str(session.temperature) + " C") if session.mode != "inert" else ""
             await update.message.reply_text(
                 "Проверьте данные рейса:\n\n"
                 "Авто: " + vehicle + "\n"
@@ -113,8 +115,8 @@ async def handle_trip_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Марка: " + (session.asphalt_grade or "") + "\n\n"
                 "Тара:   " + str(int(tare)) + " кг\n"
                 "Брутто: " + str(int(gross)) + " кг\n"
-                "Нетто:  " + str(int(net)) + " кг\n"
-                "Температура: " + str(session.temperature) + " C",
+                "Нетто:  " + str(int(net)) + " кг"
+                + temp_line,
                 reply_markup=kb
             )
         except ValueError:
